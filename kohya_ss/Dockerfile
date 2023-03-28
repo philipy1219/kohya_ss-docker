@@ -61,60 +61,24 @@ curl https://bootstrap.pypa.io/get-pip.py | python
 update-alternatives --install /usr/bin/pip pip $(which pip3) 1
 EOF
 
-COPY ./data/libs/*.deb /docker/
-RUN <<EOF
-# cuda
-#. /etc/os-release
-ID="ubuntu"
-VERSION_ID="20.04"
-curl -O /etc/apt/preferences.d/cuda-repository-pin-600 https://developer.download.nvidia.com/compute/cuda/repos/${ID}${VERSION_ID/\./}/x86_64/cuda-${ID}${VERSION_ID/\./}.pin
-echo "
-deb https://developer.download.nvidia.com/compute/cuda/repos/${ID}${VERSION_ID/\./}/x86_64 /
-" > /etc/apt/sources.list.d/cuda.list
-
-VERSION_ID="18.04"
-echo "
-deb https://developer.download.nvidia.com/compute/machine-learning/repos/${ID}${VERSION_ID/\./}/x86_64 /
-" > /etc/apt/sources.list.d/tensorRT.list
-
-apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${ID}${VERSION_ID/\./}/x86_64/7fa2af80.pub
-apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${ID}${VERSION_ID/\./}/x86_64/3bf863cc.pub
-
-apt-get update
-apt install /docker/*.deb -y
-EOF
-
 ############################################################################################################################################################################################
 WORKDIR ${ROOT}
 
 RUN <<EOF
 git clone https://github.com/P2Enjoy/kohya_ss.git ${ROOT}
 
-pip install --upgrade virtualenv
-virtualenv -p python3 ${ROOT}/kohya_venv/
-EOF
-
-COPY ./data/*.whl /docker/
-COPY ./scripts/install-container-dep.sh ./data/*-requirements.txt /docker/
-RUN <<EOF
-# tensorflow, torch, torchvision, torchaudio
-$TORCH_COMMAND
+pip install --upgrade tensorrt
 EOF
 
 RUN <<EOF
-# xformers
-/bin/bash /docker/install-container-dep.sh --upgrade-strategy only-if-needed /docker/xformers-*.whl
+# Build requirements
+pip install --use-pep517 --upgrade -r ${ROOT}/requirements.txt
 EOF
 
 RUN <<EOF
 # deepspeed
 pip install triton==${TRITON_VERSION}
 [[ ! -z "${DEEPSPEED}" ]] && [ "${DEEPSPEED}"="True" ] && TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST} DS_BUILD_OPS=${DS_BUILD_OPS} DS_BUILD_SPARSE_ATTN=0 pip install deepspeed==${DEEPSPEED_VERSION}
-EOF
-
-RUN <<EOF
-# Build requirements
-/bin/bash /docker/install-container-dep.sh --use-pep517 --upgrade -r ${ROOT}/requirements.txt
 EOF
 
 #################################################################################################################################################
