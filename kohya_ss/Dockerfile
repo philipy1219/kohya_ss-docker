@@ -67,6 +67,8 @@ WORKDIR ${ROOT}
 RUN <<EOF
 git clone https://github.com/P2Enjoy/kohya_ss.git ${ROOT}
 
+pip install --upgrade virtualenv
+virtualenv -p python3 ${ROOT}/kohya_venv/
 pip install --upgrade tensorrt
 EOF
 
